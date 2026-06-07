@@ -1,6 +1,11 @@
 package com.security.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
+
+
+import com.security.service.UserService;
+import com.security.config.JwtAuthenticationFilter; // adjust package if needed
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -8,14 +13,9 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import com.security.service.UserService;
-
-import lombok.RequiredArgsConstructor;
 
 @Configuration
 @EnableWebSecurity
@@ -23,26 +23,30 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
     private final UserService userService;
+    private final PasswordEncoder passwordEncoder; // injected from PasswordConfig
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
-        http.csrf().disable()
-            .authorizeHttpRequests()
-            .requestMatchers("/auth/**").permitAll()
-            .anyRequest().authenticated()
-            .and()
-            .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable()) // disable CSRF for stateless APIs
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/auth/**").permitAll()   // allow signup/login
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/secure-data").hasRole("USER")
+                .anyRequest().authenticated()
+            )
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
     @Bean
-    public AuthenticationManager authManager(HttpSecurity http, PasswordEncoder passwordEncoder) throws Exception {
+    public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
         return http.getSharedObject(AuthenticationManagerBuilder.class)
                 .userDetailsService(userService)
-                .passwordEncoder(passwordEncoder)   // injected from PasswordConfig
+                .passwordEncoder(passwordEncoder) // use the bean from PasswordConfig
                 .and()
                 .build();
     }

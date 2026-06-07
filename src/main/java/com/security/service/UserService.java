@@ -23,16 +23,24 @@ public class UserService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return userRepository.findByUsername(username)
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        // Convert your entity into a Spring Security UserDetails
+        return org.springframework.security.core.userdetails.User
+                .withUsername(user.getUsername())
+                .password(user.getPassword()) // already encoded
+                .authorities(user.getRoles().toArray(new String[0])) // must be ROLE_USER or ROLE_ADMIN
+                .build();
     }
 
     public User saveUser(String username, String password) {
         User user = new User();
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
-        user.setRoles(List.of("ROLE_USER"));
+        user.setRoles(List.of("ROLE_USER")); // assign default role
         return userRepository.save(user);
     }
 }
+
 

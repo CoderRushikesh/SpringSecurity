@@ -1,6 +1,6 @@
 package com.security.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import java.io.IOException;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -11,13 +11,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.security.service.JwtService;
 import com.security.service.UserService;
 
-import io.jsonwebtoken.io.IOException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
@@ -28,14 +29,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.userService = userService;
     }
 
+   
+    
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        final String requestPath = request.getServletPath();
+        
+        log.info("Processing request for path: {}", requestPath);
+
+        // Skip JWT validation for auth endpoints
+        if (requestPath.startsWith("/auth")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         final String authHeader = request.getHeader("Authorization");
         String username = null;
         String jwt = null;
 
+        log.info("Authorization header: {}", authHeader);
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             jwt = authHeader.substring(7);
             username = jwtService.extractUsername(jwt);
@@ -49,14 +63,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         }
-        try {
-			filterChain.doFilter(request, response);
-		} catch (java.io.IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ServletException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+
+        filterChain.doFilter(request, response);
     }
+
+    
+
 }
