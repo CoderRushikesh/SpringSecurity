@@ -48,6 +48,30 @@ SpringSecurity/
 
 ---
 
+## 🔐 Authentication Flow
+
+sequenceDiagram
+    participant Client
+    participant Server
+    participant DB
+
+    Client->>Server: POST /auth/register (username, password)
+    Server->>DB: Save user with encoded password
+    DB-->>Server: Success
+    Server-->>Client: Registration successful
+
+    Client->>Server: POST /auth/login (username, password)
+    Server->>DB: Validate user credentials
+    DB-->>Server: Valid user
+    Server-->>Client: JWT Token
+
+    Client->>Server: GET /secure-data (Authorization: Bearer Token)
+    Server->>Server: Validate JWT & Role
+    Server-->>Client: Secure data response
+
+
+
+
 ## 🛠️ Setup & Run
 1. Clone the repository:
    ```bash
